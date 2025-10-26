@@ -1,0 +1,14 @@
+# Requirements for Price Forecasting with Chronos
+# Install with: pip install -r requirements-forecasting.txt
+
+# Base requirements
+requests>=2.31.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Forecasting dependencies
+torch>=2.0.0
+git+https://github.com/amazon-science/chronos-forecasting.git
+
+# Note: For GPU support, install PyTorch with CUDA:
+# Visit https://pytorch.org/get-started/locally/ for instructions

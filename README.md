@@ -24,12 +24,42 @@ A comprehensive Python toolkit for analyzing historical price data from Hyperliq
 - **Backtesting Framework**: Simple strategy backtesting
 - **Statistical Analysis**: Comprehensive price statistics
 
+### Price Forecasting (`hyperliquid_forecaster.py`) ⭐ NEW!
+- **Foundation Model**: Amazon Chronos transformer-based forecasting
+- **Multiple Model Sizes**: Tiny to Large (8M - 710M parameters)
+- **Probabilistic Forecasts**: Median, mean, and confidence intervals
+- **Backtesting**: Evaluate forecast accuracy on historical data
+- **Rolling Forecasts**: Time-series cross-validation
+- **Multi-horizon**: Forecast from hours to weeks ahead
+- **Zero-shot Capability**: Works across different crypto assets
+
 ## Installation
 
-1. Install dependencies:
+### Basic Installation (Analysis Only)
+
+Install core dependencies for data fetching and technical analysis:
+
 ```bash
 pip install -r requirements.txt
 ```
+
+### Full Installation (Including Forecasting)
+
+To enable price forecasting with Chronos:
+
+```bash
+pip install -r requirements-forecasting.txt
+```
+
+Or install manually:
+
+```bash
+pip install requests pandas numpy
+pip install torch
+pip install git+https://github.com/amazon-science/chronos-forecasting.git
+```
+
+**Note**: Chronos models require PyTorch. First-time use will download models from Hugging Face (~50MB to 3GB depending on model size).
 
 ## Quick Start
 
@@ -126,6 +156,43 @@ print(f"Total Return: {results['total_return']:.2f}%")
 print(f"Number of Trades: {results['num_trades']}")
 ```
 
+### Price Forecasting
+
+```python
+from hyperliquid_forecaster import PriceForecaster
+
+# Initialize forecaster with Chronos model
+forecaster = PriceForecaster(model_size='base')  # Options: tiny, mini, small, base, large
+
+# Get historical data
+df = client.get_candles_df("BTC", "1h", lookback_periods=500)
+
+# Generate 24-hour forecast
+result = forecaster.forecast_prices(
+    df=df,
+    prediction_length=24,
+    num_samples=20
+)
+
+# View results
+print(f"Current Price: ${df['close'].iloc[-1]:,.2f}")
+print(f"24h Forecast: ${result['median'][-1]:,.2f}")
+print(f"90% Confidence Interval: ${result['quantiles']['q10'][-1]:,.2f} - ${result['quantiles']['q90'][-1]:,.2f}")
+
+# Get forecast as DataFrame
+forecast_df = forecaster.forecast_df(df, prediction_length=24)
+print(forecast_df[['mean', 'median', 'q10', 'q90']])
+
+# Backtest the forecaster
+backtest_results = forecaster.backtest(
+    df=df,
+    prediction_length=24,
+    test_size=48
+)
+print(f"MAPE: {backtest_results['mape']:.2f}%")
+print(f"Direction Accuracy: {backtest_results['direction_accuracy']:.2f}%")
+```
+
 ## API Reference
 
 ### HyperliquidClient
@@ -218,6 +285,50 @@ analyzer = PriceAnalyzer(df)
 - Simple strategy backtesting
 - Returns: Dictionary with backtest results
 
+### PriceForecaster
+
+#### Initialization
+```python
+forecaster = PriceForecaster(model_size='base', device='auto', torch_dtype=None)
+```
+- `model_size`: Model size - 'tiny' (8M), 'mini' (20M), 'small' (46M), 'base' (200M), 'large' (710M)
+- `device`: Device to use - 'auto', 'cpu', 'cuda', 'mps'
+- `torch_dtype`: Optional dtype - 'float32', 'float16', 'bfloat16'
+
+#### Forecasting Methods
+
+**forecast_prices(df, prediction_length, num_samples=20, column='close', return_quantiles=True)**
+- Generate price forecasts
+- `df`: DataFrame with historical data
+- `prediction_length`: Number of periods to forecast
+- `num_samples`: Number of sample trajectories
+- `column`: Column to forecast
+- `return_quantiles`: Whether to return quantile predictions
+- Returns: Dictionary with forecast results (median, mean, quantiles, samples)
+
+**forecast_df(df, prediction_length, num_samples=20, column='close', include_history=False)**
+- Get forecast as pandas DataFrame
+- Returns: DataFrame with forecast including mean, median, and quantiles
+
+**backtest(df, prediction_length, test_size, column='close', num_samples=20)**
+- Backtest forecasting model
+- `test_size`: Size of test set (last N periods)
+- Returns: Dictionary with MAE, RMSE, MAPE, direction accuracy
+
+**rolling_forecast(df, prediction_length, window_size, step_size=1, column='close')**
+- Perform rolling window forecasting
+- Returns: List of forecast results for each window
+
+#### Model Sizes
+
+| Size  | Parameters | Speed | Accuracy | Use Case |
+|-------|-----------|-------|----------|----------|
+| tiny  | ~8M       | Fastest | Good | Quick testing, prototyping |
+| mini  | ~20M      | Very Fast | Better | Development, fast iteration |
+| small | ~46M      | Fast | Good | Production (fast) |
+| base  | ~200M     | Medium | Excellent | **Recommended for production** |
+| large | ~710M     | Slow | Best | Maximum accuracy needed |
+
 ## Supported Timeframes
 
 - **Minutes**: 1m, 3m, 5m, 15m, 30m
@@ -234,7 +345,9 @@ analyzer = PriceAnalyzer(df)
 
 ## Examples
 
-See `example.py` for comprehensive examples including:
+### Technical Analysis Examples
+
+See `example.py` for comprehensive technical analysis examples:
 1. Basic data fetching
 2. Technical indicator usage
 3. Multi-timeframe analysis
@@ -243,24 +356,46 @@ See `example.py` for comprehensive examples including:
 6. Strategy backtesting
 7. Volatility analysis
 
-Run examples:
 ```bash
 python example.py
 ```
 
-### Offline Demo
+### Price Forecasting Examples
 
-If you want to test the tool without API access or explore its features with simulated data:
+See `example_forecasting.py` for forecasting examples:
+1. Basic price forecasting
+2. Forecast DataFrames
+3. Backtesting forecasts
+4. Multi-coin forecasting
+5. Model size comparison
+6. Combined technical analysis + forecasting
+7. Rolling window forecasts
 
+```bash
+python example_forecasting.py
+```
+
+**Note**: Requires Chronos installation (`pip install -r requirements-forecasting.txt`)
+
+### Offline Demos
+
+If you want to test the tool without API access or explore features with simulated data:
+
+**Technical Analysis Demo:**
 ```bash
 python demo_offline.py
 ```
 
-This demonstrates all features using generated sample data, perfect for:
-- Learning how the tool works
-- Testing your strategies with simulated data
+**Forecasting Demo:**
+```bash
+python demo_forecasting_offline.py
+```
+
+These demos use generated sample data, perfect for:
+- Learning how the tools work
+- Testing strategies with simulated data
 - Developing offline when API is not accessible
-- Understanding the analysis capabilities
+- Understanding capabilities without installing heavy dependencies
 
 ## Use Cases for Algorithmic Trading
 
@@ -288,6 +423,23 @@ analyzer.add_rsi(14)
 analyzer.add_atr(14)
 analyzer.calculate_volatility(window=20)
 # Adjust position sizing based on volatility
+```
+
+### Price Forecasting
+```python
+# Predict future prices for position planning
+forecaster = PriceForecaster(model_size='base')
+forecast = forecaster.forecast_prices(df, prediction_length=24)
+
+# Use forecast confidence intervals for risk management
+lower_bound = forecast['quantiles']['q10'][-1]
+upper_bound = forecast['quantiles']['q90'][-1]
+expected_price = forecast['median'][-1]
+
+# Make trading decisions based on forecast
+if expected_price > current_price * 1.02:  # Expecting 2%+ increase
+    # Consider long position with stop-loss at lower_bound
+    pass
 ```
 
 ## Advanced Usage
